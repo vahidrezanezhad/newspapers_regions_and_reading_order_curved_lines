@@ -53,7 +53,7 @@ class sbb_newspapers_cl:
         self.dir_models = dir_models
         self.kernel = np.ones((5, 5), np.uint8)
         self.model_page_dir = dir_models + '/model_page_mixed_best.h5'
-        self.model_region_dir_p = dir_models +'/model_main_scale_1_1und_1_2_corona_great.h5'#'/model_layout_newspapers.h5'#'/model_main_home_5_soft_new.h5'#'/model_home_soft_5_all_data.h5' #'/model_main_office_long_soft.h5'#'/model_20_cat_main.h5'
+        self.model_region_dir_p = dir_models +'/model_main_covid19_lr5-5_scale_1_1_great.h5'#'/model_main_scale_1_1und_1_2_corona_great.h5'
         self.model_textline_dir = dir_models + '/model_textline_newspapers.h5'#'/model_hor_ver_home_trextline_very_good.h5'# '/model_hor_ver_1_great.h5'#'/model_curved_office_works_great.h5'
 
 
@@ -6329,13 +6329,331 @@ class sbb_newspapers_cl:
         x2 = x1 + int(wr)
         return rotated[y1:y2, x1:x2],rotated_textline[y1:y2, x1:x2],rotated_layout[y1:y2, x1:x2]
     
+    def get_regions_from_xy_neu(self,img):
+        img_org=np.copy(img)
+        
+        img_height_h=img_org.shape[0]
+        img_width_h=img_org.shape[1]
+        
+        model_region, session_region = self.start_new_session_and_model(self.model_region_dir_p)
+        
+        gaussian_filter=False
+        patches=True
+        binary=True
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_org=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_org=self.resize_image(prediction_regions_org, img_height_h, img_width_h )
+        
+        #plt.imshow(prediction_regions_org[:,:,0])
+        #plt.show()
+        #sys.exit()
+        prediction_regions_org=prediction_regions_org[:,:,0]
+        
+        
+        
+        
+        gaussian_filter=False
+        patches=False
+        binary=False
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_orgt=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_orgt=self.resize_image(prediction_regions_orgt, img_height_h, img_width_h )
+        
+        #plt.imshow(prediction_regions_orgt[:,:,0])
+        #plt.show()
+        #sys.exit()
+        prediction_regions_orgt=prediction_regions_orgt[:,:,0]
+        
+        
+        mask_texts_longshot=(prediction_regions_orgt[:,:]==1)*1
+        
+        mask_texts_longshot=np.uint8(mask_texts_longshot)
+        #mask_texts_longshot = cv2.dilate(mask_texts_longshot[:,:], self.kernel, iterations=2)
+        
+        pixel_img=1
+        polygons_of_only_texts_longshot=self.return_contours_of_interested_region(mask_texts_longshot,pixel_img)
+        
+        longshot_true=np.zeros(mask_texts_longshot.shape)
+        #text_regions_p_true[:,:]=text_regions_p_1[:,:]
+        
+        longshot_true=cv2.fillPoly(longshot_true,pts=polygons_of_only_texts_longshot, color=(1,1,1))
+        
+        #plt.imshow(longshot_true)
+        #plt.show()
+        
+        gaussian_filter=False
+        patches=False
+        binary=False
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        
+        one_third_upper_ny=int(img.shape[0]/3.0)
+        
+        img=img[0:one_third_upper_ny,:,:]
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_longshot_one_third=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_longshot_one_third=self.resize_image(prediction_regions_longshot_one_third, one_third_upper_ny, img_width_h )
+        
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        img=img[one_third_upper_ny:int(2*one_third_upper_ny),:,:]
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_longshot_one_third_middle=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_longshot_one_third_middle=self.resize_image(prediction_regions_longshot_one_third_middle, one_third_upper_ny, img_width_h )
+        
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        img=img[int(2*one_third_upper_ny):,:,:]
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_longshot_one_third_down=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_longshot_one_third_down=self.resize_image(prediction_regions_longshot_one_third_down, img_height_h-int(2*one_third_upper_ny), img_width_h )
+        
+        #plt.imshow(prediction_regions_org[:,:,0])
+        #plt.show()
+        #sys.exit()
+        prediction_regions_longshot=np.zeros((img_height_h,img_width_h))
+        
+        #prediction_regions_longshot=prediction_regions_longshot[:,:,0]
+        
+        #prediction_regions_longshot[0:one_third_upper_ny,:]=prediction_regions_longshot_one_third[:,:,0]
+        #prediction_regions_longshot[one_third_upper_ny:int(2*one_third_upper_ny):,:]=prediction_regions_longshot_one_third_middle[:,:,0]
+        #prediction_regions_longshot[int(2*one_third_upper_ny):,:]=prediction_regions_longshot_one_third_down[:,:,0]
+        
+        prediction_regions_longshot=longshot_true[:,:]        
+        #plt.imshow(prediction_regions_longshot)
+        #plt.show()
+        
+        gaussian_filter=False
+        patches=True
+        binary=False
+        
+        
+        
+
+        ratio_x=1#1.1
+        ratio_y=1
+        median_blur=False
+        
+        #img= self.resize_image(img_org, int(img_org.shape[0]*0.8), int(img_org.shape[1]*1.6))
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        
+        prediction_regions=self.do_prediction(patches,img,model_region)
+        text_region1=self.resize_image(prediction_regions, img_height_h, img_width_h )
+    
+        #plt.imshow(text_region1[:,:,0])
+        #plt.show()
+        ratio_x=1
+        ratio_y=1.2#1.3
+        binary=False
+        median_blur=False
+        
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+
+        prediction_regions=self.do_prediction(patches,img,model_region)
+        text_region2=self.resize_image(prediction_regions, img_height_h, img_width_h )
+        
+        
+        #plt.imshow(text_region2[:,:,0])
+        #plt.show()
+        session_region.close()
+        del model_region
+        del session_region
+        gc.collect()
+        
+        #text_region1=text_region1[:,:,0]
+        #text_region2=text_region2[:,:,0]
+        
+        #text_region1[(text_region1[:,:]==2) & (text_region2[:,:]==1)]=1
+        
+        
+        mask_zeros_from_1=(text_region2[:,:,0]==0)*1
+        #mask_text_from_1=(text_region1[:,:,0]==1)*1
+        
+
+
+        mask_img_text_region1=(text_region1[:,:,0]==2)*1
+        text_region2_1st_channel=text_region1[:,:,0]
+        
+        text_region2_1st_channel[mask_zeros_from_1==1]=0
+        
+        ##text_region2_1st_channel[mask_img_text_region1[:,:]==1]=2
+        #text_region2_1st_channel[(mask_text_from_1==1) & (text_region2_1st_channel==2)]=1
+        
+        mask_lines1=(text_region1[:,:,0]==3)*1
+        mask_lines2=(text_region2[:,:,0]==3)*1
+        
+        mask_lines2[mask_lines1[:,:]==1]=1
+        
+        #plt.imshow(text_region2_1st_channel)
+        #plt.show()
+        
+        text_region2_1st_channel = cv2.erode(text_region2_1st_channel[:,:], self.kernel, iterations=4)
+        
+        #plt.imshow(text_region2_1st_channel)
+        #plt.show()
+        
+        text_region2_1st_channel = cv2.dilate(text_region2_1st_channel[:,:], self.kernel, iterations=4)
+        
+        
+        text_region2_1st_channel[mask_lines2[:,:]==1]=3
+        
+        #text_region2_1st_channel[ (prediction_regions_org[:,:]==1) & (text_region2_1st_channel[:,:]==2)]=1
+        
+        
+        # only in the case of model 3
+        
+        text_region2_1st_channel[(prediction_regions_longshot[:,:]==1) & (text_region2_1st_channel[:,:]==2)]=1
+        
+        text_region2_1st_channel[ (prediction_regions_org[:,:]==2) & (text_region2_1st_channel[:,:]==0)]=2
+        
+        #text_region2_1st_channel[prediction_regions_org[:,:]==0]=0
+        
+        #plt.imshow(text_region2_1st_channel)
+        #plt.show()
+        
+        #text_region2_1st_channel[:,:400]=0
+        
+        mask_texts_only=(text_region2_1st_channel[:,:]==1)*1
+        
+        mask_images_only=(text_region2_1st_channel[:,:]==2)*1
+        
+        mask_lines_only=(text_region2_1st_channel[:,:]==3)*1
+        
+        pixel_img=1
+        polygons_of_only_texts=self.return_contours_of_interested_region(mask_texts_only,pixel_img)
+        
+        polygons_of_only_images=self.return_contours_of_interested_region(mask_images_only,pixel_img)
+        
+        polygons_of_only_lines=self.return_contours_of_interested_region(mask_lines_only,pixel_img)
+        
+        
+        text_regions_p_true=np.zeros(text_region2_1st_channel.shape)
+        #text_regions_p_true[:,:]=text_regions_p_1[:,:]
+        
+        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_lines, color=(3,3,3))
+        
+        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_images, color=(2,2,2))
+        
+        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_texts, color=(1,1,1))
+        
+        ##print(np.unique(text_regions_p_true))
+        
+        
+        #text_regions_p_true_3d=np.repeat(text_regions_p_1[:, :, np.newaxis], 3, axis=2)
+        #text_regions_p_true_3d=text_regions_p_true_3d.astype(np.uint8)
+        
+
+        return text_regions_p_true#text_region2_1st_channel
+    
     def run(self):
         
         #get image and sclaes, then extract the page of scanned image
 
         self.get_image_and_scales()
         #self.get_layout(self.image)
-        text_regions_p_1=self.get_regions_from_xy(self.image)
+        ###text_regions_p_1=self.get_regions_from_xy(self.image)
+        text_regions_p_1=self.get_regions_from_xy_neu(self.image)
+        
         
         #plt.imshow(text_regions_p_1)
         #plt.show()
