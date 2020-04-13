@@ -53,7 +53,9 @@ class sbb_newspapers_cl:
         self.dir_models = dir_models
         self.kernel = np.ones((5, 5), np.uint8)
         self.model_page_dir = dir_models + '/model_page_mixed_best.h5'
-        self.model_region_dir_p = dir_models +'/model_main_covid19_lr5-5_scale_1_1_great.h5'#'/model_main_scale_1_1und_1_2_corona_great.h5'
+        self.model_region_dir_p = dir_models +'/model_main_covid_19_many_scalin_down_lr5-5_the_best.h5'#'/model_main_covid19_lr5-5_scale_1_1_great.h5'#'/model_main_scale_1_1und_1_2_corona_great.h5'
+        self.model_region_dir_p2 = dir_models +'/model_main_home_corona3_rot.h5'
+        self.model_region_dir_p_low_scale = dir_models +'/model_main_scale_1_1und_1_2_corona_great.h5'
         self.model_textline_dir = dir_models + '/model_textline_newspapers.h5'#'/model_hor_ver_home_trextline_very_good.h5'# '/model_hor_ver_1_great.h5'#'/model_curved_office_works_great.h5'
 
 
@@ -257,10 +259,20 @@ class sbb_newspapers_cl:
         return img_r
     def get_image_and_scales(self):
         
+        
         self.image = cv2.imread(self.image_dir)
+        self.low_scale_metric=self.image.shape[0]
         self.image_org=np.copy(self.image)
         self.height_org = self.image.shape[0]
         self.width_org = self.image.shape[1]
+        
+        
+        if self.image.shape[0] < 1700:
+            self.img_hight_int = 2800
+            self.img_width_int = int(self.img_hight_int * self.image.shape[1] / float(self.image.shape[0]))
+        else:
+            self.img_hight_int = self.image.shape[0]
+            self.img_width_int = self.image.shape[1]
         """
         if self.image.shape[0] < 1000:
             self.img_hight_int = 2800
@@ -283,8 +295,8 @@ class sbb_newspapers_cl:
             self.img_width_int = self.image.shape[1]
         """
     
-        self.img_hight_int =int(self.image.shape[0]*1)
-        self.img_width_int = int(self.image.shape[1]*1)
+        ##self.img_hight_int =int(self.image.shape[0]*1)
+        ##self.img_width_int = int(self.image.shape[1]*1)
         self.scale_y = self.img_hight_int / float(self.image.shape[0])
         self.scale_x = self.img_width_int / float(self.image.shape[1])
 
@@ -6645,6 +6657,303 @@ class sbb_newspapers_cl:
 
         return text_regions_p_true#text_region2_1st_channel
     
+    def get_regions_from_xy_2models(self,img):
+        img_org=np.copy(img)
+        
+        img_height_h=img_org.shape[0]
+        img_width_h=img_org.shape[1]
+        
+        model_region, session_region = self.start_new_session_and_model(self.model_region_dir_p)
+        
+        gaussian_filter=False
+        patches=True
+        binary=False
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1.3
+        median_blur=False
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_org_y=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_org_y=self.resize_image(prediction_regions_org_y, img_height_h, img_width_h )
+        
+        #plt.imshow(prediction_regions_org[:,:,0])
+        #plt.show()
+        #sys.exit()
+        prediction_regions_org_y=prediction_regions_org_y[:,:,0]
+        
+        
+        mask_zeros_y=(prediction_regions_org_y[:,:]==0)*1
+        
+        
+        
+        
+        
+        
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_org=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_org=self.resize_image(prediction_regions_org, img_height_h, img_width_h )
+        
+        #plt.imshow(prediction_regions_org[:,:,0])
+        #plt.show()
+        #sys.exit()
+        prediction_regions_org=prediction_regions_org[:,:,0]
+        
+        prediction_regions_org[(prediction_regions_org[:,:]==1) & (mask_zeros_y[:,:]==1)]=0
+        session_region.close()
+        del model_region
+        del session_region
+        gc.collect()
+        
+        
+        model_region, session_region = self.start_new_session_and_model(self.model_region_dir_p2)
+        
+        gaussian_filter=False
+        patches=True
+        binary=False
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_org2=self.do_prediction(patches,img,model_region)
+        
+        prediction_regions_org2=self.resize_image(prediction_regions_org2, img_height_h, img_width_h )
+        
+        #plt.imshow(prediction_regions_org[:,:,0])
+        #plt.show()
+        #sys.exit()
+        ##prediction_regions_org=prediction_regions_org[:,:,0]
+        
+        session_region.close()
+        del model_region
+        del session_region
+        gc.collect()
+        
+        mask_zeros2=(prediction_regions_org2[:,:,0]==0)*1
+        mask_lines2=(prediction_regions_org2[:,:,0]==3)*1
+        
+        prediction_regions_org[(prediction_regions_org[:,:]==1) & (mask_zeros2[:,:]==1)]=0
+        
+        ##prediction_regions_org[mask_lines2[:,:]==1]=3
+        prediction_regions_org[(mask_lines2[:,:]==1) & (prediction_regions_org[:,:]==0)]=3
+        
+        mask_lines_only=(prediction_regions_org[:,:]==3)*1
+        
+        prediction_regions_org = cv2.erode(prediction_regions_org[:,:], self.kernel, iterations=2)
+        
+        #plt.imshow(text_region2_1st_channel)
+        #plt.show()
+        
+        prediction_regions_org = cv2.dilate(prediction_regions_org[:,:], self.kernel, iterations=2)
+        
+        mask_texts_only=(prediction_regions_org[:,:]==1)*1
+        
+        mask_images_only=(prediction_regions_org[:,:]==2)*1
+        
+        
+        
+        pixel_img=1
+        polygons_of_only_texts=self.return_contours_of_interested_region(mask_texts_only,pixel_img)
+        
+        polygons_of_only_images=self.return_contours_of_interested_region(mask_images_only,pixel_img)
+        
+        polygons_of_only_lines=self.return_contours_of_interested_region(mask_lines_only,pixel_img)
+        
+        
+        text_regions_p_true=np.zeros(prediction_regions_org.shape)
+        #text_regions_p_true[:,:]=text_regions_p_1[:,:]
+        
+        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_lines, color=(3,3,3))
+        
+        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_images, color=(2,2,2))
+        
+        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_texts, color=(1,1,1))
+        
+        ##print(np.unique(text_regions_p_true))
+        
+        
+        #text_regions_p_true_3d=np.repeat(text_regions_p_1[:, :, np.newaxis], 3, axis=2)
+        #text_regions_p_true_3d=text_regions_p_true_3d.astype(np.uint8)
+        
+
+        return text_regions_p_true
+    
+    
+    def get_regions_from_xy_low_scale(self,img):
+        img_org=np.copy(img)
+        
+        img_height_h=img_org.shape[0]
+        img_width_h=img_org.shape[1]
+        
+        model_region, session_region = self.start_new_session_and_model(self.model_region_dir_p)
+        
+        gaussian_filter=False
+        patches=True
+        binary=True
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+            
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        prediction_regions_org=self.do_prediction(patches,img,model_region)
+        
+        ###plt.imshow(prediction_regions_org[:,:,0])
+        ###plt.show()
+        ##sys.exit()
+        prediction_regions_org=prediction_regions_org[:,:,0]
+        
+        
+        
+        gaussian_filter=False
+        patches=True
+        binary=False
+        
+        
+        
+
+        ratio_x=1
+        ratio_y=1
+        median_blur=False
+        
+        #img= self.resize_image(img_org, int(img_org.shape[0]*0.8), int(img_org.shape[1]*1.6))
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+        
+        prediction_regions=self.do_prediction(patches,img,model_region)
+        text_region1=self.resize_image(prediction_regions, img_height_h, img_width_h )
+    
+        
+        ratio_x=1
+        ratio_y=1
+        binary=False
+        median_blur=False
+        
+        
+        img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
+
+        if binary:
+            img = self.otsu_copy_binary(img)#self.otsu_copy(img)
+            img = img.astype(np.uint16)
+            
+        if median_blur:
+            img=cv2.medianBlur(img,5)
+        if gaussian_filter:
+            img= cv2.GaussianBlur(img,(5,5),0)
+            img = img.astype(np.uint16)
+
+        prediction_regions=self.do_prediction(patches,img,model_region)
+        text_region2=self.resize_image(prediction_regions, img_height_h, img_width_h )
+        
+        session_region.close()
+        del model_region
+        del session_region
+        gc.collect()
+        
+        
+        mask_zeros_from_1=(text_region1[:,:,0]==0)*1
+        #mask_text_from_1=(text_region1[:,:,0]==1)*1
+        
+
+
+        mask_img_text_region1=(text_region1[:,:,0]==2)*1
+        text_region2_1st_channel=text_region2[:,:,0]
+        
+        text_region2_1st_channel[mask_zeros_from_1==1]=0
+        
+        text_region2_1st_channel[mask_img_text_region1[:,:]==1]=2
+        #text_region2_1st_channel[(mask_text_from_1==1) & (text_region2_1st_channel==2)]=1
+        
+        mask_lines1=(text_region1[:,:,0]==3)*1
+        mask_lines2=(text_region2[:,:,0]==3)*1
+        
+        mask_lines2[mask_lines1[:,:]==1]=1
+        
+        ##plt.imshow(text_region2_1st_channel)
+        ##plt.show()
+        
+        text_region2_1st_channel = cv2.erode(text_region2_1st_channel[:,:], self.kernel, iterations=5)
+        
+        ##plt.imshow(text_region2_1st_channel)
+        ##plt.show()
+        
+        text_region2_1st_channel = cv2.dilate(text_region2_1st_channel[:,:], self.kernel, iterations=5)
+        
+        
+        text_region2_1st_channel[mask_lines2[:,:]==1]=3
+        
+        text_region2_1st_channel[ (prediction_regions_org[:,:]==1) & (text_region2_1st_channel[:,:]==2)]=1
+        text_region2_1st_channel[prediction_regions_org[:,:]==3]=3
+        
+        ##plt.imshow(text_region2_1st_channel)
+        ##plt.show()
+        return text_region2_1st_channel
+    
     def run(self):
         
         #get image and sclaes, then extract the page of scanned image
@@ -6652,7 +6961,12 @@ class sbb_newspapers_cl:
         self.get_image_and_scales()
         #self.get_layout(self.image)
         ###text_regions_p_1=self.get_regions_from_xy(self.image)
-        text_regions_p_1=self.get_regions_from_xy_neu(self.image)
+        ##text_regions_p_1=self.get_regions_from_xy_neu(self.image)
+        
+        if self.low_scale_metric<1700:
+            text_regions_p_1=self.get_regions_from_xy_low_scale(self.image)
+        else:
+            text_regions_p_1=self.get_regions_from_xy_2models(self.image)
         
         
         #plt.imshow(text_regions_p_1)
@@ -6675,6 +6989,7 @@ class sbb_newspapers_cl:
         scaler_h_textline=1.2#1.2
         scaler_w_textline=0.9#1
         textline_mask_tot,textline_mask_tot_long_shot=self.textline_contours(image_page,patches,scaler_h_textline,scaler_w_textline)
+        
         
 
         sigma=2
