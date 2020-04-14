@@ -7008,9 +7008,9 @@ class sbb_newspapers_cl:
         
         
         print(region_sum_0[peaks])
-        plt.plot(region_sum_0)
-        plt.plot(peaks,region_sum_0[peaks],'*')
-        plt.show()
+        ##plt.plot(region_sum_0)
+        ##plt.plot(peaks,region_sum_0[peaks],'*')
+        ##plt.show()
         #print(first_nonzero,last_nonzero,peaks)
         peaks=peaks[(peaks>first_nonzero) & ((peaks<last_nonzero))]
         
@@ -7047,9 +7047,9 @@ class sbb_newspapers_cl:
         text_regions[:,0:point_left][text_regions[:,0:point_left]==1]=4
         
         text_regions[:,point_right:][ text_regions[:,point_right:]==1]=4
-        plt.plot(region_sum_0)
-        plt.plot(peaks,region_sum_0[peaks],'*')
-        plt.show()
+        #plt.plot(region_sum_0)
+        #plt.plot(peaks,region_sum_0[peaks],'*')
+        #plt.show()
         return text_regions
     
     def run(self):
@@ -7178,9 +7178,9 @@ class sbb_newspapers_cl:
         else:
             pass
         
-        plt.imshow(text_regions_p)
-        plt.show()
-        sys.exit()
+        #plt.imshow(text_regions_p)
+        #plt.show()
+        #sys.exit()
         boxes=self.return_boxes_of_images_by_order_of_reading_new(spliter_y_new,regions_without_seperators,matrix_of_lines_ch)
         
         
@@ -7191,6 +7191,9 @@ class sbb_newspapers_cl:
         
         pixel_img=2
         polygons_of_images=self.return_contours_of_interested_region(img_revised_tab,pixel_img)
+        
+        
+
         
 
 
