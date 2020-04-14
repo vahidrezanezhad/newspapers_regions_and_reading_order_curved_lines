@@ -6829,7 +6829,7 @@ class sbb_newspapers_cl:
         img_height_h=img_org.shape[0]
         img_width_h=img_org.shape[1]
         
-        model_region, session_region = self.start_new_session_and_model(self.model_region_dir_p)
+        model_region, session_region = self.start_new_session_and_model(self.model_region_dir_p_low_scale)
         
         gaussian_filter=False
         patches=True
@@ -6870,7 +6870,7 @@ class sbb_newspapers_cl:
 
         ratio_x=1
         ratio_y=1
-        median_blur=False
+        median_blur=True
         
         #img= self.resize_image(img_org, int(img_org.shape[0]*0.8), int(img_org.shape[1]*1.6))
         img= self.resize_image(img_org, int(img_org.shape[0]*ratio_y), int(img_org.shape[1]*ratio_x))
@@ -6953,6 +6953,104 @@ class sbb_newspapers_cl:
         ##plt.imshow(text_region2_1st_channel)
         ##plt.show()
         return text_region2_1st_channel
+    
+    def get_marginals(self,text_with_lines,text_regions,num_col):
+        text_with_lines=text_with_lines.astype(np.uint16)
+        text_with_lines=cv2.erode(text_with_lines,self.kernel,iterations=3)
+        text_with_lines_y=text_with_lines.sum(axis=0)
+        
+        text_with_lines_y_rev=-1*text_with_lines_y[:]
+        #print(text_with_lines_y)
+        #print(text_with_lines_y_rev)
+        
+        #plt.plot(text_with_lines_y)
+        #plt.show()
+        
+        
+        #plt.plot(text_with_lines_y_rev)
+        #plt.show()
+        
+        
+        text_with_lines_y_rev=text_with_lines_y_rev-np.min(text_with_lines_y_rev)
+        
+        #plt.plot(text_with_lines_y_rev)
+        #plt.show()
+        sigma_gaus=1
+        region_sum_0= gaussian_filter1d(text_with_lines_y, sigma_gaus)
+        
+        region_sum_0_rev=gaussian_filter1d(text_with_lines_y_rev, sigma_gaus)
+        
+        #plt.plot(region_sum_0_rev)
+        #plt.show()
+        region_sum_0_updown=region_sum_0[len(region_sum_0)::-1]
+
+        first_nonzero=(next((i for i, x in enumerate(region_sum_0) if x), None))
+        last_nonzero=(next((i for i, x in enumerate(region_sum_0_updown) if x), None))
+
+
+        last_nonzero=len(region_sum_0)-last_nonzero
+        
+        ##img_sum_0_smooth_rev=-region_sum_0
+        
+        
+        mid_point=(last_nonzero+first_nonzero)/2.
+        
+        
+        one_third_right=(last_nonzero-mid_point)/3.0
+        one_third_left=(mid_point-first_nonzero)/3.0
+        
+        #img_sum_0_smooth_rev=img_sum_0_smooth_rev-np.min(img_sum_0_smooth_rev)
+        
+        peaks, _ = find_peaks(text_with_lines_y_rev, height=0)
+        
+
+        peaks=np.array(peaks)
+        
+        
+        print(region_sum_0[peaks])
+        plt.plot(region_sum_0)
+        plt.plot(peaks,region_sum_0[peaks],'*')
+        plt.show()
+        #print(first_nonzero,last_nonzero,peaks)
+        peaks=peaks[(peaks>first_nonzero) & ((peaks<last_nonzero))]
+        
+        print(first_nonzero,last_nonzero,peaks)
+        
+        
+        #print(region_sum_0[peaks]<10)
+        peaks=peaks[region_sum_0[peaks]<25 ]
+        
+        #print(first_nonzero,last_nonzero,peaks)
+        
+        if num_col==0:
+            peaks_right=peaks[peaks>mid_point]
+            peaks_left=peaks[peaks<mid_point]
+        if num_col==1:
+            peaks_right=peaks[peaks>(mid_point+one_third_right)]
+            peaks_left=peaks[peaks<(mid_point-one_third_left)]
+            
+        
+        try:
+            point_right=np.min(peaks_right)
+        except:
+            point_right=last_nonzero
+        
+        
+        try:
+            point_left=np.max(peaks_left)
+        except:
+            point_left=first_nonzero
+            
+        print(point_left,point_right)
+        #print(text_regions.shape)
+        
+        text_regions[:,0:point_left][text_regions[:,0:point_left]==1]=4
+        
+        text_regions[:,point_right:][ text_regions[:,point_right:]==1]=4
+        plt.plot(region_sum_0)
+        plt.plot(peaks,region_sum_0[peaks],'*')
+        plt.show()
+        return text_regions
     
     def run(self):
         
@@ -7068,11 +7166,21 @@ class sbb_newspapers_cl:
         
         regions_without_seperators=( (text_regions_p[:,:]==1) | (text_regions_p[:,:]==2) )*1 #self.return_regions_without_seperators_new(text_regions_p[:,:,0],img_only_regions)
 
+
         
 
         num_col,peaks_neg_fin,matrix_of_lines_ch,spliter_y_new,seperators_closeup_n=self.find_number_of_columns_in_document(np.repeat(text_regions_p[:, :, np.newaxis], 3, axis=2))
         
+        print(num_col)
         
+        if num_col==0 or num_col==1:
+            text_regions_p=self.get_marginals(regions_without_seperators,text_regions_p,num_col)
+        else:
+            pass
+        
+        plt.imshow(text_regions_p)
+        plt.show()
+        sys.exit()
         boxes=self.return_boxes_of_images_by_order_of_reading_new(spliter_y_new,regions_without_seperators,matrix_of_lines_ch)
         
         
