@@ -6809,7 +6809,8 @@ class sbb_newspapers_cl:
         
         text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_lines, color=(3,3,3))
         
-        text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_images, color=(2,2,2))
+        ##text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_images, color=(2,2,2))
+        text_regions_p_true[:,:][mask_images_only[:,:]==1]=2
         
         text_regions_p_true=cv2.fillPoly(text_regions_p_true,pts=polygons_of_only_texts, color=(1,1,1))
         
@@ -7052,6 +7053,211 @@ class sbb_newspapers_cl:
         #plt.show()
         return text_regions
     
+    def small_textlines_to_parent_adherence2(self,textlines_con,textline_iamge,num_col):
+        #print(textlines_con)
+        #textlines_con=textlines_con.astype(np.uint32)
+        
+        textlines_con_changed=[]
+        for m1 in range(len(textlines_con)):
+            
+            #textlines_tot=textlines_con[m1]
+            #textlines_tot=textlines_tot.astype()
+            textlines_tot=[]
+            textlines_tot_org_form=[]
+            #print(textlines_tot)
+            
+            for nn in range(len(textlines_con[m1])):
+                textlines_tot.append(np.array( textlines_con[m1][nn],dtype=np.int32)  )
+                textlines_tot_org_form.append(textlines_con[m1][nn])
+                
+            ##img_text_all=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+            ##img_text_all=cv2.fillPoly(img_text_all, pts =textlines_tot , color=(1,1,1))
+            
+            ##plt.imshow(img_text_all)
+            ##plt.show()
+            areas_cnt_text=np.array([cv2.contourArea(textlines_tot[j]) for j in range(len(textlines_tot))])
+            areas_cnt_text=areas_cnt_text/float(textline_iamge.shape[0]*textline_iamge.shape[1])
+            indexes_textlines=np.array(range(len(textlines_tot)))
+            
+            #print(areas_cnt_text,np.min(areas_cnt_text),np.max(areas_cnt_text))
+            if num_col==0:
+                min_area=0.0004
+            elif num_col==1:
+                min_area=0.0003
+            else:
+                min_area=0.0001
+            indexes_textlines_small=indexes_textlines[areas_cnt_text<min_area]
+            
+            #print(indexes_textlines)
+            
+            textlines_small=[]
+            textlines_small_org_form=[]
+            for i in indexes_textlines_small:
+                textlines_small.append(textlines_tot[i])
+                textlines_small_org_form.append(textlines_tot_org_form[i])
+                
+            textlines_big=[]
+            textlines_big_org_form=[]
+            for i in list(set(indexes_textlines)-set(indexes_textlines_small) ):
+                textlines_big.append(textlines_tot[i])
+                textlines_big_org_form.append(textlines_tot_org_form[i])
+                
+            img_textline_s=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+            img_textline_s=cv2.fillPoly(img_textline_s, pts =textlines_small , color=(1,1,1))
+            
+            img_textline_b=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+            img_textline_b=cv2.fillPoly(img_textline_b, pts =textlines_big , color=(1,1,1))
+            
+            sum_small_big_all=img_textline_s+img_textline_b
+            sum_small_big_all2=(sum_small_big_all[:,:]==2)*1
+            
+            sum_intersection_sb=sum_small_big_all2.sum(axis=1).sum()
+            
+            if sum_intersection_sb>0:
+            
+                dis_small_from_bigs_tot=[]
+                for z1 in range(len(textlines_small)):
+                    #print(len(textlines_small),'small')
+                    intersections=[]
+                    for z2 in range(len(textlines_big)):
+                        img_text=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+                        img_text=cv2.fillPoly(img_text, pts =[textlines_small[z1] ] , color=(1,1,1))
+                        
+                        img_text2=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+                        img_text2=cv2.fillPoly(img_text2, pts =[textlines_big[z2] ]  , color=(1,1,1))
+                        
+                        sum_small_big=img_text2+img_text
+                        sum_small_big_2=(sum_small_big[:,:]==2)*1
+                        
+                        sum_intersection=sum_small_big_2.sum(axis=1).sum()
+                        
+                        #print(sum_intersection)
+                        
+                        intersections.append(sum_intersection)
+                    
+                    if len(np.array(intersections)[np.array(intersections)>0] )==0:
+                        intersections=[]
+                        
+                    try:
+                        dis_small_from_bigs_tot.append(np.argmax(intersections))
+                    except:
+                        dis_small_from_bigs_tot.append(-1)
+                    
+                
+                smalls_list=np.array(dis_small_from_bigs_tot)[np.array(dis_small_from_bigs_tot)>=0]
+                
+                #index_small_textlines_rest=list( set(indexes_textlines_small)-set(smalls_list) )
+                
+                textlines_big_with_change=[]
+                textlines_big_with_change_con=[]
+                textlines_small_with_change=[]
+                
+                
+                for z in list(set(smalls_list)):
+                    index_small_textlines=list(np.where(np.array(dis_small_from_bigs_tot)==z)[0])
+                    #print(z,index_small_textlines)
+                
+                    img_text2=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1],3))
+                    img_text2=cv2.fillPoly(img_text2, pts =[textlines_big[z]] , color=(255,255,255))
+                    
+                    textlines_big_with_change.append(z)
+                    
+                    for k in index_small_textlines:
+                        img_text2=cv2.fillPoly(img_text2, pts =[textlines_small[k]] , color=(255,255,255))
+                        textlines_small_with_change.append(k)
+                        
+                        
+                    img_text2=img_text2.astype(np.uint8)
+                    imgray = cv2.cvtColor(img_text2, cv2.COLOR_BGR2GRAY)
+                    ret, thresh = cv2.threshold(imgray, 0, 255, 0)
+                    cont,hierachy=cv2.findContours(thresh,cv2.RETR_TREE,cv2.CHAIN_APPROX_SIMPLE)
+                    
+                    #print(cont[0],type(cont))
+                    
+                    textlines_big_with_change_con.append(cont)
+                    textlines_big_org_form[z]=cont[0]
+
+                    #plt.imshow(img_text2)
+                    #plt.show()
+
+                #print(textlines_big_with_change,'textlines_big_with_change')
+                #print(textlines_small_with_change,'textlines_small_with_change')
+                #print(textlines_big)
+                textlines_con_changed.append(textlines_big_org_form)
+                
+            else:
+                textlines_con_changed.append(textlines_big_org_form)
+        return textlines_con_changed
+        
+    
+    def small_textlines_to_parent_adherence(self,textlines_con,textline_iamge):
+        #print(textlines_con)
+        #textlines_con=textlines_con.astype(np.uint32)
+        
+        textlines_tot=[]
+        
+        for j in range(len(textlines_con)):
+            for nn in range(len(textlines_con[j])):
+                textlines_tot.append(np.array( textlines_con[j][nn],dtype=np.int32)  )
+        areas_cnt_text=np.array([cv2.contourArea(textlines_tot[j]) for j in range(len(textlines_tot))])
+        areas_cnt_text=areas_cnt_text/float(textline_iamge.shape[0]*textline_iamge.shape[1])
+        indexes_textlines=np.array(range(len(textlines_tot)))
+        
+        #print(areas_cnt_text,np.min(areas_cnt_text),np.max(areas_cnt_text))
+        
+        indexes_textlines_small=indexes_textlines[areas_cnt_text<0.0003]
+        
+        #print(indexes_textlines)
+        
+        textlines_small=[]
+        for i in indexes_textlines_small:
+            textlines_small.append(textlines_tot[i])
+            
+        textlines_big=[]
+        for i in list(set(indexes_textlines)-set(indexes_textlines_small) ):
+            textlines_big.append(textlines_tot[i])
+            
+         
+        dis_small_from_bigs_tot=[]
+        for z1 in range(len(textlines_small)):
+            
+            intersections=[]
+            for z2 in range(len(textlines_big)):
+                img_text=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+                img_text=cv2.fillPoly(img_text, pts =[textlines_small[z1] ] , color=(1,1,1))
+                
+                img_text2=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+                img_text2=cv2.fillPoly(img_text2, pts =[textlines_big[z2] ]  , color=(1,1,1))
+                
+                sum_small_big=img_text2+img_text
+                sum_small_big_2=(sum_small_big[:,:]==2)*1
+                
+                sum_intersection=sum_small_big_2.sum(axis=1).sum()
+                
+                #print(sum_intersection)
+                
+                intersections.append(sum_intersection)
+            dis_small_from_bigs_tot.append(np.argmax(intersections))
+            
+
+        
+        for z in list(set(dis_small_from_bigs_tot)):
+            index_small_textlines=list(np.where(np.array(dis_small_from_bigs_tot)==z)[0])
+            print(z,index_small_textlines)
+        
+            img_text2=np.zeros((textline_iamge.shape[0],textline_iamge.shape[1]))
+            img_text2=cv2.fillPoly(img_text2, pts =[textlines_big[z]] , color=(125,125,125))
+            
+            for k in index_small_textlines:
+                img_text2=cv2.fillPoly(img_text2, pts =[textlines_small[k]] , color=(255,255,255))
+            
+
+            plt.imshow(img_text2)
+            plt.show()
+        
+        #sys.exit()
+            
+    
     def run(self):
         
         #get image and sclaes, then extract the page of scanned image
@@ -7128,7 +7334,7 @@ class sbb_newspapers_cl:
         img_only_regions = cv2.erode(img_only_regions_with_sep[:,:], self.kernel, iterations=6)
         
 
-        num_col, peaks_neg_fin=self.find_num_col(img_only_regions,multiplier=6.0)
+        #num_col, peaks_neg_fin=self.find_num_col(img_only_regions,multiplier=6.0)
         
 
         
@@ -7239,6 +7445,7 @@ class sbb_newspapers_cl:
         ###contours_only_text_h,hir_on_text_h=self.return_contours_of_image(text_only_h)
         ###contours_only_text_parent_h=self.return_parent_contours( contours_only_text_h,hir_on_text_h)
         
+        ##print(contours_only_text_parent[0],'duzzzzzzzz')
         areas_cnt_text=np.array([cv2.contourArea(contours_only_text_parent[j]) for j in range(len(contours_only_text_parent))])
         areas_cnt_text=areas_cnt_text/float(text_only.shape[0]*text_only.shape[1])
         
@@ -7340,6 +7547,14 @@ class sbb_newspapers_cl:
             processes[i].join()
         queue_of_all_params.close()
         
+        t11=time.time()
+        
+        #print(textlines_cnt_tot,'before')
+        textlines_cnt_tot=self.small_textlines_to_parent_adherence2(textlines_cnt_tot,textline_mask_tot,num_col)
+        #sys.exit()
+        #print(textlines_cnt_tot,'after')
+        print(time.time()-t11,'time')
+        
         
         
         
@@ -7436,7 +7651,7 @@ class sbb_newspapers_cl:
         ###for tj1 in range(len(contours_only_text_parent_h)):
             ###order_of_texts_tot.append(int(order_by_con_head[tj1]) )
             ####id_of_texts_tot.append('r'+str(int(order_by_con_head[tj1] )))
-            
+        
         order_text_new=[]
         for iii in range(len(order_of_texts_tot)):
             tartib_new=np.where(np.array(order_of_texts_tot)==iii)[0][0]
